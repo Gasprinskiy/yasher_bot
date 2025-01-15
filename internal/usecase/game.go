@@ -196,3 +196,8 @@ func (u *GameUsecase) GetTopWinners(chatId string) string {
 
 	return message
 }
+
+func (u *GameUsecase) GetHealthCheckMessage() string {
+	messageIndex := random.MakeRandomNumber(len(messages.HealthCheckMessages))
+	return messages.HealthCheckMessages[messageIndex]
+}

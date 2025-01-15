@@ -61,6 +61,9 @@ func StartUpdatesListening(
 					layer.HandleTopWinners(update)
 				},
 			)
+
+		case fmt.Sprintf("%s@%s", commands.HealthCheck, bot.Self.UserName):
+
 		}
 		fmt.Println("update: ", update.Message.Text)
 	}
@@ -140,6 +143,11 @@ func (e *External) CheckBotStarted(
 	}
 
 	onStartedFunc(update)
+}
+
+func (e *External) HandleHealthCheck(update tgbotapi.Update) {
+	message := e.usecase.GetHealthCheckMessage()
+	e.handleMessageSend(update, message)
 }
 
 func (e *External) getChatIdAsString(update tgbotapi.Update) string {
