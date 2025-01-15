@@ -39,32 +39,45 @@ func StartUpdatesListening(
 			layer.HandleStart(update)
 
 		case fmt.Sprintf("%s@%s", commands.RegisterCommand, bot.Self.UserName):
-			layer.HandleRegister(update)
+			layer.CheckBotStarted(
+				update,
+				func(update tgbotapi.Update) {
+					layer.HandleRegister(update)
+				},
+			)
 
 		case fmt.Sprintf("%s@%s", commands.RunTheGameCommand, bot.Self.UserName):
-			layer.HandleRunTheGame(update)
+			layer.CheckBotStarted(
+				update,
+				func(update tgbotapi.Update) {
+					layer.HandleRunTheGame(update)
+				},
+			)
+
+		case fmt.Sprintf("%s@%s", commands.GetTopWinners, bot.Self.UserName):
+			layer.CheckBotStarted(
+				update,
+				func(update tgbotapi.Update) {
+					layer.HandleTopWinners(update)
+				},
+			)
 		}
 		fmt.Println("update: ", update.Message.Text)
 	}
 }
 
 func (e *External) HandleStart(update tgbotapi.Update) {
-	chatId := fmt.Sprintf("%d", update.Message.Chat.ID)
-
-	message := e.usecase.GetStarted(chatId)
+	message := e.usecase.GetStarted(e.getChatIdAsString(update))
 	if message == "" {
 		return
 	}
 
-	botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, message)
-	botMsg.ParseMode = "HTML"
-
-	e.bot.Send(botMsg)
+	e.handleMessageSend(update, message)
 }
 
 func (e *External) HandleRegister(update tgbotapi.Update) {
 	param := chat.AddParticipantParam{
-		ChatID:   fmt.Sprintf("%d", update.Message.Chat.ID),
+		ChatID:   e.getChatIdAsString(update),
 		UserID:   update.Message.From.ID,
 		UserName: update.Message.From.UserName,
 	}
@@ -74,38 +87,26 @@ func (e *External) HandleRegister(update tgbotapi.Update) {
 		return
 	}
 
-	botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, message)
-	botMsg.ParseMode = "HTML"
-
-	e.bot.Send(botMsg)
+	e.handleMessageSend(update, message)
 }
 
 func (e *External) HandleRunTheGame(update tgbotapi.Update) {
-	chatId := fmt.Sprintf("%d", update.Message.Chat.ID)
+	chatId := e.getChatIdAsString(update)
 
 	participants, checkParticipantsMessage := e.usecase.CheckParticipantsMessage(chatId)
 	if checkParticipantsMessage != "" {
-		botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, checkParticipantsMessage)
-		botMsg.ParseMode = "HTML"
-
-		e.bot.Send(botMsg)
+		e.handleMessageSend(update, checkParticipantsMessage)
 		return
 	}
 
 	winnerFoundMessage := e.usecase.TodayWinnerFoundMessage(chatId)
 	if winnerFoundMessage != "" {
-		botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, winnerFoundMessage)
-		botMsg.ParseMode = "HTML"
-
-		e.bot.Send(botMsg)
+		e.handleMessageSend(update, winnerFoundMessage)
 		return
 	}
 
 	beforeRunMessage := e.usecase.GetBeforeRunMessage()
-	botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, beforeRunMessage)
-	botMsg.ParseMode = "HTML"
-
-	e.bot.Send(botMsg)
+	e.handleMessageSend(update, beforeRunMessage)
 
 	go func() {
 		time.Sleep(800 * time.Millisecond)
@@ -115,8 +116,42 @@ func (e *External) HandleRunTheGame(update tgbotapi.Update) {
 			return
 		}
 
-		botMsg = tgbotapi.NewMessage(update.Message.Chat.ID, message)
-
-		e.bot.Send(botMsg)
+		e.handleMessageSend(update, message)
 	}()
+}
+
+func (e *External) HandleTopWinners(update tgbotapi.Update) {
+	message := e.usecase.GetTopWinners(e.getChatIdAsString(update))
+	if message == "" {
+		return
+	}
+
+	e.handleMessageSend(update, message)
+}
+
+func (e *External) CheckBotStarted(
+	update tgbotapi.Update,
+	onStartedFunc func(update tgbotapi.Update),
+) {
+	startedMessage := e.usecase.IsBotStartedMessage(e.getChatIdAsString(update))
+	if startedMessage != "" {
+		e.handleMessageSend(update, startedMessage)
+		return
+	}
+
+	onStartedFunc(update)
+}
+
+func (e *External) getChatIdAsString(update tgbotapi.Update) string {
+	return fmt.Sprintf("%d", update.Message.Chat.ID)
+}
+
+func (e *External) handleMessageSend(update tgbotapi.Update, message string) {
+	botMsg := tgbotapi.NewMessage(update.Message.Chat.ID, message)
+	botMsg.ParseMode = "HTML"
+
+	_, err := e.bot.Send(botMsg)
+	if err != nil {
+		fmt.Println("Ошибка при отправке сообщения: ", err.Error())
+	}
 }

@@ -273,3 +273,54 @@ func (r *chatRepository) FindLastWinner(chatID string) (chat.Participant, error)
 
 	return data, nil
 }
+
+func (r *chatRepository) FindChatParticipantsWithScore(chatID string) ([]chat.ParticipantWithScore, error) {
+	data := []chat.ParticipantWithScore{}
+
+	query := `
+	SELECT 
+		p.id, 
+		p.chat_id,
+		p.user_id,
+		p.user_name,
+		ps.score_count
+	FROM participants p
+		JOIN participants_score ps ON ps.participant_id = p.id 
+	WHERE p.chat_id = ?
+	ORDER BY ps.score_count DESC
+	LIMIT 10
+	OFFSET 0`
+
+	rows, err := r.db.Query(query, chatID)
+	if err != nil {
+		return data, err
+	}
+
+	for rows.Next() {
+		var id int
+		var chat_id string
+		var user_id int
+		var user_name string
+		var score_count int
+
+		err = rows.Scan(&id, &chat_id, &user_id, &user_name, &score_count)
+		if err != nil {
+			fmt.Printf("Ошибка при чтении строки: %v", err)
+		}
+
+		participant := chat.ParticipantWithScore{
+			ID:         id,
+			ChatID:     chat_id,
+			UserID:     user_id,
+			UserName:   user_name,
+			ScoreCount: score_count,
+		}
+		data = append(data, participant)
+	}
+
+	if len(data) == 0 {
+		return data, global.ErrNoData
+	}
+
+	return data, nil
+}

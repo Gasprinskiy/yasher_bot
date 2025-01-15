@@ -3,7 +3,6 @@ package usecase
 import (
 	"fmt"
 	"time"
-	"yasher_bot/constants/commands"
 	"yasher_bot/constants/global"
 	"yasher_bot/constants/messages"
 	"yasher_bot/entity/chat"
@@ -36,12 +35,26 @@ func (u *GameUsecase) GetStarted(chatId string) string {
 			return message
 		}
 
-		message = fmt.Sprintf(messages.HelloMessage, commands.RegisterCommand)
+		message = messages.HelloMessage
 	} else {
 		message = messages.AlreadyStartedMessage
 	}
 
 	return message
+}
+
+func (u *GameUsecase) IsBotStartedMessage(chatId string) string {
+	_, err := u.repo.GetChatById(chatId)
+	if err != nil && err != global.ErrNoData {
+		fmt.Println("Ошибка при получении чата: ", err.Error())
+		return ""
+	}
+
+	if err == global.ErrNoData {
+		return messages.BotIsNotStarted
+	}
+
+	return ""
 }
 
 func (u *GameUsecase) RegisterParticipants(participant chat.AddParticipantParam) string {
@@ -105,7 +118,7 @@ func (u *GameUsecase) CheckParticipantsMessage(chatId string) ([]chat.Participan
 	}
 
 	if err == global.ErrNoData {
-		return data, fmt.Sprintf(messages.NoParticipantsMessage, commands.RegisterCommand)
+		return data, messages.NoParticipantsMessage
 	}
 
 	if len(data) == 1 {
@@ -161,4 +174,25 @@ func (u *GameUsecase) RunTheGame(participants []chat.Participant, chatId string)
 	messageIndex := random.MakeRandomNumber(len(messages.WinnerMessages))
 
 	return fmt.Sprintf(messages.WinnerMessages[messageIndex], winner.UserName)
+}
+
+func (u *GameUsecase) GetTopWinners(chatId string) string {
+	data, err := u.repo.FindChatParticipantsWithScore(chatId)
+	if err != nil && err != global.ErrNoData {
+		fmt.Println("Ошибка при получении топа победителей: ", err.Error())
+		return ""
+	}
+
+	if err == global.ErrNoData {
+		return messages.TopWinnersEmpty
+	}
+
+	message := messages.TopWinnersMessage
+
+	for i := 0; i < len(data); i++ {
+		participant := data[i]
+		message += fmt.Sprintf("%d. %s: %d раз(а)\n", i+1, participant.UserName, participant.ScoreCount)
+	}
+
+	return message
 }

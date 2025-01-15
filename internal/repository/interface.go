@@ -17,4 +17,5 @@ type Chat interface {
 	UnMarkLastWinner(chatID string) error
 	UpdateUserScore(score chat.Score) error
 	FindLastWinner(chatID string) (chat.Participant, error)
+	FindChatParticipantsWithScore(chatID string) ([]chat.ParticipantWithScore, error)
 }

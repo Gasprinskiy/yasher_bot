@@ -26,3 +26,11 @@ type Score struct {
 	ParticipantID int
 	ScoreCount    int
 }
+
+type ParticipantWithScore struct {
+	ID         int
+	ChatID     string
+	UserID     int
+	UserName   string
+	ScoreCount int
+}
