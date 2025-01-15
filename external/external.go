@@ -63,7 +63,7 @@ func StartUpdatesListening(
 			)
 
 		case fmt.Sprintf("%s@%s", commands.HealthCheck, bot.Self.UserName):
-
+			layer.HandleHealthCheck(update)
 		}
 		fmt.Println("update: ", update.Message.Text)
 	}
