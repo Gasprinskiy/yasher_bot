@@ -176,6 +176,36 @@ func (u *GameUsecase) RunTheGame(participants []chat.Participant, chatId string)
 	return fmt.Sprintf(messages.WinnerMessages[messageIndex], winner.UserName)
 }
 
+func (u *GameUsecase) SpecialRulesMessage(chatId string) string {
+	if chatId != "-4522854310" {
+		return ""
+	}
+
+	return messages.SpecialWinnerMessage
+}
+
+func (u *GameUsecase) GetGameParticipantsListMessage(chatId string) string {
+	data, err := u.repo.GetChatParticipantList(chatId)
+	if err != nil && err != global.ErrNoData {
+		fmt.Println("Ошибка при получении участников игры: ", err.Error())
+		return ""
+	}
+
+	if err == global.ErrNoData {
+		return messages.NoParticipantsMessage
+	}
+
+	message := messages.ParticipantsListMessage
+
+	for i, participant := range data {
+		message += fmt.Sprintf("%d. %s\n", i+1, participant.UserName)
+	}
+
+	message += messages.ParticipantsListMessageEnd
+
+	return message
+}
+
 func (u *GameUsecase) GetTopWinners(chatId string) string {
 	data, err := u.repo.FindChatParticipantsWithScore(chatId)
 	if err != nil && err != global.ErrNoData {
@@ -189,8 +219,7 @@ func (u *GameUsecase) GetTopWinners(chatId string) string {
 
 	message := messages.TopWinnersMessage
 
-	for i := 0; i < len(data); i++ {
-		participant := data[i]
+	for i, participant := range data {
 		message += fmt.Sprintf("%d. %s: %d раз(а)\n", i+1, participant.UserName, participant.ScoreCount)
 	}
 

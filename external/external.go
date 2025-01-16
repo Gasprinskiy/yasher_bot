@@ -3,10 +3,13 @@ package external
 import (
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 	"yasher_bot/constants/commands"
 	"yasher_bot/entity/chat"
 	"yasher_bot/internal/usecase"
+	"yasher_bot/tools/random"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -33,12 +36,14 @@ func StartUpdatesListening(
 		log.Panic(err)
 	}
 
+	botUserName := bot.Self.UserName
+
 	for update := range updates {
 		switch update.Message.Text {
-		case fmt.Sprintf("%s@%s", commands.StartCommand, bot.Self.UserName):
+		case fmt.Sprintf("%s@%s", commands.StartCommand, botUserName):
 			layer.HandleStart(update)
 
-		case fmt.Sprintf("%s@%s", commands.RegisterCommand, bot.Self.UserName):
+		case fmt.Sprintf("%s@%s", commands.RegisterCommand, botUserName):
 			layer.CheckBotStarted(
 				update,
 				func(update tgbotapi.Update) {
@@ -46,7 +51,7 @@ func StartUpdatesListening(
 				},
 			)
 
-		case fmt.Sprintf("%s@%s", commands.RunTheGameCommand, bot.Self.UserName):
+		case fmt.Sprintf("%s@%s", commands.RunTheGameCommand, botUserName):
 			layer.CheckBotStarted(
 				update,
 				func(update tgbotapi.Update) {
@@ -54,7 +59,7 @@ func StartUpdatesListening(
 				},
 			)
 
-		case fmt.Sprintf("%s@%s", commands.GetTopWinners, bot.Self.UserName):
+		case fmt.Sprintf("%s@%s", commands.GetTopWinners, botUserName):
 			layer.CheckBotStarted(
 				update,
 				func(update tgbotapi.Update) {
@@ -62,9 +67,24 @@ func StartUpdatesListening(
 				},
 			)
 
-		case fmt.Sprintf("%s@%s", commands.HealthCheck, bot.Self.UserName):
+		case fmt.Sprintf("%s@%s", commands.GetParticipantsList, botUserName):
+			layer.HandleGetParticipantsList(update)
+
+		case fmt.Sprintf("%s@%s", commands.HealthCheck, botUserName):
 			layer.HandleHealthCheck(update)
 		}
+
+		// Debug code
+		if strings.Contains(update.Message.Text, fmt.Sprintf("%s@%s", "/rand", botUserName)) {
+			splitedMessage := strings.Split(update.Message.Text, " ")[1]
+			i, err := strconv.Atoi(splitedMessage)
+			if err != nil {
+				fmt.Println("Could not parse string number: ", err)
+			}
+			layer.handleMessageSend(update, fmt.Sprintf("Shit: %d", random.MakeRandomNumber(i)))
+		}
+		//
+
 		fmt.Println("update: ", update.Message.Text)
 	}
 }
@@ -120,11 +140,26 @@ func (e *External) HandleRunTheGame(update tgbotapi.Update) {
 		}
 
 		e.handleMessageSend(update, message)
+
+		specialMessage := e.usecase.SpecialRulesMessage(chatId)
+		if specialMessage != "" {
+			return
+		}
+		e.handleMessageSend(update, specialMessage)
 	}()
 }
 
 func (e *External) HandleTopWinners(update tgbotapi.Update) {
 	message := e.usecase.GetTopWinners(e.getChatIdAsString(update))
+	if message == "" {
+		return
+	}
+
+	e.handleMessageSend(update, message)
+}
+
+func (e *External) HandleGetParticipantsList(update tgbotapi.Update) {
+	message := e.usecase.GetGameParticipantsListMessage(e.getChatIdAsString(update))
 	if message == "" {
 		return
 	}

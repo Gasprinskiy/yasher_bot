@@ -11,6 +11,7 @@ type Chat interface {
 	SetChatLastRun(chatID string, lastRun time.Time) error
 	AddGameParticipants(participant chat.AddParticipantParam) error
 	GetChatParticipant(chatID string, userId int) (chat.Participant, error)
+	GetChatParticipantList(chatID string) ([]chat.Participant, error)
 	FindChatParticipants(chatID string) ([]chat.Participant, error)
 	FindUserScoreById(chatID string, userID int) (int, error)
 	SetNewUserScore(score chat.Score) error
