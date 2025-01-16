@@ -124,6 +124,50 @@ func (r *chatRepository) GetChatParticipant(chatID string, userId int) (chat.Par
 	return data, nil
 }
 
+func (r *chatRepository) GetChatParticipantByUserName(chatID string, useName string) (chat.Participant, error) {
+	data := chat.Participant{}
+	found := false
+
+	query := `
+	SELECT 
+		p.id, 
+		p.chat_id,
+		p.user_id,
+		p.user_name
+	FROM participants p
+		WHERE p.chat_id = ?
+		AND p.user_name = ?`
+
+	rows, err := r.db.Query(query, chatID, useName)
+
+	if err != nil {
+		return data, err
+	}
+
+	for rows.Next() {
+		found = true
+
+		var id int
+		var chat_id string
+		var user_id int
+		var user_name string
+		err = rows.Scan(&id, &chat_id, &user_id, &user_name)
+		if err != nil {
+			fmt.Printf("Ошибка при чтении строки: %v", err)
+		}
+		data.ID = id
+		data.ChatID = chat_id
+		data.UserID = user_id
+		data.UserName = user_name
+	}
+
+	if !found {
+		return data, global.ErrNoData
+	}
+
+	return data, nil
+}
+
 func (r *chatRepository) GetChatParticipantList(chatID string) ([]chat.Participant, error) {
 	data := []chat.Participant{}
 

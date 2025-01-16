@@ -181,7 +181,17 @@ func (u *GameUsecase) SpecialRulesMessage(chatId string) string {
 		return ""
 	}
 
-	return messages.SpecialWinnerMessage
+	_, err := u.repo.GetChatParticipantByUserName(chatId, "YohoCX")
+	if err != nil && err != global.ErrNoData {
+		fmt.Println("Ошибка при поиске голиба: ", err.Error())
+		return messages.SpecialWinnerMessage
+	}
+
+	if err == global.ErrNoData {
+		return messages.SpecialWinnerMessage
+	}
+
+	return ""
 }
 
 func (u *GameUsecase) GetGameParticipantsListMessage(chatId string) string {
