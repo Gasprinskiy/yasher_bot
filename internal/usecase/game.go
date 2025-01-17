@@ -155,16 +155,16 @@ func (u *GameUsecase) RunTheGame(participants []chat.ParticipantWithScore, chatI
 		ScoreCount:    1 + winner.ScoreCount.GetInt(),
 	}
 
-	if err == global.ErrNoData {
-		err = u.repo.SetNewUserScore(newScore)
-		if err != nil {
-			fmt.Println("Ошибка при создании cчета победителя: ", err.Error())
-			return ""
-		}
-	} else {
+	if winner.ScoreCount.Valid {
 		err = u.repo.UpdateUserScore(newScore)
 		if err != nil {
 			fmt.Println("Ошибка при обновлении cчета победителя: ", err.Error())
+			return ""
+		}
+	} else {
+		err = u.repo.SetNewUserScore(newScore)
+		if err != nil {
+			fmt.Println("Ошибка при создании cчета победителя: ", err.Error())
 			return ""
 		}
 	}
