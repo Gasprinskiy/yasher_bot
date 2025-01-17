@@ -7,6 +7,7 @@ import (
 	"yasher_bot/constants/global"
 	"yasher_bot/entity/chat"
 	"yasher_bot/internal/repository"
+	"yasher_bot/tools/sqlnull"
 )
 
 type chatRepository struct {
@@ -212,17 +213,20 @@ func (r *chatRepository) GetChatParticipantList(chatID string) ([]chat.Participa
 	return data, nil
 }
 
-func (r *chatRepository) FindChatParticipants(chatID string) ([]chat.Participant, error) {
-	data := []chat.Participant{}
+func (r *chatRepository) FindChatParticipants(chatID string) ([]chat.ParticipantWithScore, error) {
+	data := []chat.ParticipantWithScore{}
 
 	query := `
 	SELECT 
 		p.id, 
 		p.chat_id,
 		p.user_id,
-		p.user_name
+		p.user_name,
+		ps.score_count,
+		ps.is_last_winner
 	FROM participants p
-		WHERE p.chat_id = ?`
+		LEFT OUTER JOIN participants_score ps ON ps.participant_id = p.id 
+	WHERE p.chat_id = ?`
 
 	rows, err := r.db.Query(query, chatID)
 	if err != nil {
@@ -234,16 +238,21 @@ func (r *chatRepository) FindChatParticipants(chatID string) ([]chat.Participant
 		var chat_id string
 		var user_id int
 		var user_name string
-		err = rows.Scan(&id, &chat_id, &user_id, &user_name)
+		var score_count sqlnull.NullInt64
+		var is_last_winner sqlnull.NullBool
+
+		err = rows.Scan(&id, &chat_id, &user_id, &user_name, &score_count, &is_last_winner)
 		if err != nil {
 			fmt.Printf("Ошибка при чтении строки: %v", err)
 		}
 
-		participant := chat.Participant{
-			ID:       id,
-			ChatID:   chat_id,
-			UserID:   user_id,
-			UserName: user_name,
+		participant := chat.ParticipantWithScore{
+			ID:           id,
+			ChatID:       chat_id,
+			UserID:       user_id,
+			UserName:     user_name,
+			ScoreCount:   score_count,
+			IsLastWinner: is_last_winner.Bool,
 		}
 		data = append(data, participant)
 	}
@@ -371,7 +380,8 @@ func (r *chatRepository) FindChatParticipantsWithScore(chatID string) ([]chat.Pa
 		p.chat_id,
 		p.user_id,
 		p.user_name,
-		ps.score_count
+		ps.score_count,
+		ps.is_last_winner
 	FROM participants p
 		JOIN participants_score ps ON ps.participant_id = p.id 
 	WHERE p.chat_id = ?
@@ -389,19 +399,21 @@ func (r *chatRepository) FindChatParticipantsWithScore(chatID string) ([]chat.Pa
 		var chat_id string
 		var user_id int
 		var user_name string
-		var score_count int
+		var score_count sqlnull.NullInt64
+		var is_last_winner sqlnull.NullBool
 
-		err = rows.Scan(&id, &chat_id, &user_id, &user_name, &score_count)
+		err = rows.Scan(&id, &chat_id, &user_id, &user_name, &score_count, &is_last_winner)
 		if err != nil {
 			fmt.Printf("Ошибка при чтении строки: %v", err)
 		}
 
 		participant := chat.ParticipantWithScore{
-			ID:         id,
-			ChatID:     chat_id,
-			UserID:     user_id,
-			UserName:   user_name,
-			ScoreCount: score_count,
+			ID:           id,
+			ChatID:       chat_id,
+			UserID:       user_id,
+			UserName:     user_name,
+			ScoreCount:   score_count,
+			IsLastWinner: is_last_winner.Bool,
 		}
 		data = append(data, participant)
 	}

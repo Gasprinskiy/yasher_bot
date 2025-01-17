@@ -140,12 +140,6 @@ func (e *External) HandleRunTheGame(update tgbotapi.Update) {
 		}
 
 		e.handleMessageSend(update, message)
-
-		specialMessage := e.usecase.SpecialRulesMessage(chatId)
-		if specialMessage != "" {
-			return
-		}
-		e.handleMessageSend(update, specialMessage)
 	}()
 }
 

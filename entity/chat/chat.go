@@ -1,6 +1,9 @@
 package chat
 
-import "time"
+import (
+	"time"
+	"yasher_bot/tools/sqlnull"
+)
 
 type Chat struct {
 	ID      int
@@ -28,9 +31,10 @@ type Score struct {
 }
 
 type ParticipantWithScore struct {
-	ID         int
-	ChatID     string
-	UserID     int
-	UserName   string
-	ScoreCount int
+	ID           int
+	ChatID       string
+	UserID       int
+	UserName     string
+	ScoreCount   sqlnull.NullInt64
+	IsLastWinner bool
 }

@@ -13,7 +13,7 @@ type Chat interface {
 	GetChatParticipant(chatID string, userId int) (chat.Participant, error)
 	GetChatParticipantByUserName(chatID string, useName string) (chat.Participant, error)
 	GetChatParticipantList(chatID string) ([]chat.Participant, error)
-	FindChatParticipants(chatID string) ([]chat.Participant, error)
+	FindChatParticipants(chatID string) ([]chat.ParticipantWithScore, error)
 	FindUserScoreById(chatID string, userID int) (int, error)
 	SetNewUserScore(score chat.Score) error
 	UnMarkLastWinner(chatID string) error

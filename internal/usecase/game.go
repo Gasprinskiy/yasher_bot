@@ -9,6 +9,7 @@ import (
 	"yasher_bot/internal/repository"
 	"yasher_bot/tools/chronos"
 	"yasher_bot/tools/random"
+	"yasher_bot/tools/slice"
 )
 
 type GameUsecase struct {
@@ -110,7 +111,7 @@ func (u *GameUsecase) GetBeforeRunMessage() string {
 	return messages.SearchInProgressMessages[messageIndex]
 }
 
-func (u *GameUsecase) CheckParticipantsMessage(chatId string) ([]chat.Participant, string) {
+func (u *GameUsecase) CheckParticipantsMessage(chatId string) ([]chat.ParticipantWithScore, string) {
 	data, err := u.repo.FindChatParticipants(chatId)
 	if err != nil && err != global.ErrNoData {
 		fmt.Println("Ошибка при получении учатсников: ", err.Error())
@@ -128,9 +129,19 @@ func (u *GameUsecase) CheckParticipantsMessage(chatId string) ([]chat.Participan
 	return data, ""
 }
 
-func (u *GameUsecase) RunTheGame(participants []chat.Participant, chatId string) string {
-	winnerIndex := random.MakeRandomNumber(len(participants))
-	winner := participants[winnerIndex]
+func (u *GameUsecase) RunTheGame(participants []chat.ParticipantWithScore, chatId string) string {
+	data := []chat.ParticipantWithScore{}
+	for _, participant := range participants {
+		if participant.IsLastWinner && (participant.ScoreCount.Valid && participant.ScoreCount.GetInt() >= 3) {
+			continue
+		}
+		data = append(data, participant)
+	}
+
+	data = slice.ShuffleArray(data)
+
+	winnerIndex := random.MakeRandomNumber(len(data))
+	winner := data[winnerIndex]
 
 	err := u.repo.UnMarkLastWinner(chatId)
 	if err != nil {
@@ -138,16 +149,10 @@ func (u *GameUsecase) RunTheGame(participants []chat.Participant, chatId string)
 		return ""
 	}
 
-	winnerScore, err := u.repo.FindUserScoreById(chatId, winner.ID)
-	if err != nil && err != global.ErrNoData {
-		fmt.Println("Ошибка при получении cчета победителя: ", err.Error())
-		return ""
-	}
-
 	newScore := chat.Score{
 		ChatID:        chatId,
 		ParticipantID: winner.ID,
-		ScoreCount:    1 + winnerScore,
+		ScoreCount:    1 + winner.ScoreCount.GetInt(),
 	}
 
 	if err == global.ErrNoData {
@@ -174,24 +179,6 @@ func (u *GameUsecase) RunTheGame(participants []chat.Participant, chatId string)
 	messageIndex := random.MakeRandomNumber(len(messages.WinnerMessages))
 
 	return fmt.Sprintf(messages.WinnerMessages[messageIndex], winner.UserName)
-}
-
-func (u *GameUsecase) SpecialRulesMessage(chatId string) string {
-	if chatId != "-4522854310" {
-		return ""
-	}
-
-	// _, err := u.repo.GetChatParticipantByUserName(chatId, "YohoCX")
-	// if err != nil && err != global.ErrNoData {
-	// 	fmt.Println("Ошибка при поиске голиба: ", err.Error())
-	// 	return messages.SpecialWinnerMessage
-	// }
-
-	// if err == global.ErrNoData {
-	// 	return messages.SpecialWinnerMessage
-	// }
-
-	return messages.SpecialWinnerMessage
 }
 
 func (u *GameUsecase) GetGameParticipantsListMessage(chatId string) string {
@@ -230,7 +217,7 @@ func (u *GameUsecase) GetTopWinners(chatId string) string {
 	message := messages.TopWinnersMessage
 
 	for i, participant := range data {
-		message += fmt.Sprintf("%d. %s: %d раз(а)\n", i+1, participant.UserName, participant.ScoreCount)
+		message += fmt.Sprintf("%d. %s: %d раз(а)\n", i+1, participant.UserName, participant.ScoreCount.GetInt())
 	}
 
 	return message
